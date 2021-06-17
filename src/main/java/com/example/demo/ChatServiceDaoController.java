@@ -1,0 +1,168 @@
+package com.example.demo;
+
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@RestController
+public class ChatServiceDaoController {
+	
+	public static void main(String args[]) {
+		
+		MessageRepository messageRepository;
+		
+		MessageDao messageDao=new MessageDao();
+		messageDao.setMessage("Hola, como estas");
+ 	   messageDao.setChannel("mychannel_owner160");
+ 	   messageDao.setId("vvenega:owner160:9876");
+ 	   messageDao.setObjectid(9876);
+ 	   messageDao.setReceiver("vvenega");
+ 	   messageDao.setSender("owner160");
+		
+		try {
+			
+			RedisConfig config = new RedisConfig();
+			config.topic=messageDao.getChannel();
+			
+			//ObjectMapper mapper = new ObjectMapper();
+			//MessageDao messageDao = mapper.readValue(message.toString(), MessageDao.class);
+			/*System.err.println("Subscriber:"+messageDao.getObjectid());
+			System.err.println("Sender:"+messageDao.getSender());
+			System.err.println("Receiver:"+messageDao.getReceiver());
+			
+			
+			
+			messageRepository=new MessageRepository(config.redisTemplate());
+			messageRepository.saveMessage(messageDao);*/
+			
+			UserConversationRepository userConRep= 
+					new UserConversationRepository(config.redisTemplateUserConversation());
+			
+			userConRep.deleteUserConversation("vvenega");
+			userConRep.deleteUserConversation("owner160");
+			
+			userConRep.getConversations("vvenega");
+			UserConversationDao dao = new UserConversationDao();
+			dao.setIdConversation(messageDao.getId());
+			dao.setUsername(messageDao.getReceiver());
+			dao.setId(dao.getIdConversation()+":"+dao.getUsername());
+			
+			userConRep.saveUserConversation(dao);
+
+			}catch(Exception e) {
+				e.printStackTrace();
+			}
+		
+	}
+	 
+	private static Map<String,RedisMessageListenerContainer> containers = 
+			new HashMap<String,RedisMessageListenerContainer>();
+
+	
+	@GetMapping("/BroadcastDAO/{message}/{sender}/{receiver}/{channel}/{id}/{objectid}/{namesender}/{namereceiver}")
+	public boolean publishMessage (@PathVariable String message,
+			@PathVariable String sender,@PathVariable String receiver,
+			@PathVariable String channel, @PathVariable String id,
+			@PathVariable String objectid,@PathVariable String namesender,
+			@PathVariable String namereceiver) {
+		
+		       boolean result=false;
+		       MessageDao messageDao = new MessageDao();
+		       try {
+		    	   messageDao.setMessage(message);
+		    	   messageDao.setChannel(channel);
+		    	   messageDao.setId(id);
+		    	   messageDao.setObjectid(Long.parseLong(objectid));
+		    	   messageDao.setReceiver(receiver);
+		    	   messageDao.setSender(sender);
+		    	   messageDao.setNameReceiver(namereceiver);
+		    	   messageDao.setNameSender(namesender);
+
+		    	   
+		    	   RedisMessageListenerContainer container;
+		    	   RedisConfig config = new RedisConfig();
+	    		   config.topic=messageDao.getChannel();
+		    	   
+		    	   
+		    	   if(!containers.containsKey(messageDao.getChannel())) {
+	
+			    	   container =config.redisContainer();
+			    	   
+			    	   MessageSubscriber chatter = new MessageSubscriber();
+			    	   container.addMessageListener(chatter, config.topic());
+			    	   
+			    	   containers.put(messageDao.getChannel(), container);
+			    	   
+			   
+		    	   }
+	
+
+		    	   MessagePublisher publisher = config.redisPublisher();
+		    	   
+		    	   DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+		           LocalDateTime now = LocalDateTime.now();
+		           messageDao.setDate(dtf.format(now));
+		    	   publisher.publish(messageDao);
+		    	   
+		       }catch(Exception e) {
+		    	   e.printStackTrace();
+		       }
+		       
+		       
+		       return result;
+		
+	}
+	
+	@GetMapping("/GetConversationDAO/{idconversation}")
+	public List<MessageDao> getConversation (@PathVariable String idconversation) {
+		
+		List<MessageDao> lstMessages;
+		RedisConfig config = new RedisConfig();
+
+		try {
+			
+			MessageRepository messageRepository=new MessageRepository(config.redisTemplate());
+			lstMessages = messageRepository.getConversation(idconversation);
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+			lstMessages=new ArrayList<MessageDao>();
+		}
+		
+		return lstMessages;
+		
+	}
+	
+	@GetMapping("/GetConversationsDAO/{username}")
+	public List<UserConversationDao> getConversations (@PathVariable String username) {
+		
+		List<UserConversationDao> lstConversations;
+		RedisConfig config = new RedisConfig();
+
+		try {
+			
+			UserConversationRepository userConversationRepository=new UserConversationRepository(config.redisTemplateUserConversation());
+			lstConversations = userConversationRepository.getConversations(username);
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+			lstConversations=new ArrayList<UserConversationDao>();
+		}
+		
+		return lstConversations;
+		
+	}
+
+}
