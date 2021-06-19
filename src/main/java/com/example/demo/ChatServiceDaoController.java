@@ -25,11 +25,11 @@ public class ChatServiceDaoController {
 		
 		MessageDao messageDao=new MessageDao();
 		messageDao.setMessage("Hola, como estas");
- 	   messageDao.setChannel("mychannel_owner160");
- 	   messageDao.setId("vvenega:owner160:9876");
- 	   messageDao.setObjectid(9876);
- 	   messageDao.setReceiver("vvenega");
- 	   messageDao.setSender("owner160");
+ 	   messageDao.setChannel("mychannel_vvenega");
+ 	   messageDao.setId("vvenega:owner3759:6238551");
+ 	   messageDao.setObjectid(6238551);
+ 	   messageDao.setReceiver("owner3759");
+ 	   messageDao.setSender("vvenega");
 		
 		try {
 			
@@ -47,7 +47,7 @@ public class ChatServiceDaoController {
 			messageRepository=new MessageRepository(config.redisTemplate());
 			messageRepository.saveMessage(messageDao);*/
 			
-			UserConversationRepository userConRep= 
+			/*UserConversationRepository userConRep= 
 					new UserConversationRepository(config.redisTemplateUserConversation());
 			
 			userConRep.deleteUserConversation("vvenega");
@@ -59,7 +59,12 @@ public class ChatServiceDaoController {
 			dao.setUsername(messageDao.getReceiver());
 			dao.setId(dao.getIdConversation()+":"+dao.getUsername());
 			
-			userConRep.saveUserConversation(dao);
+			userConRep.saveUserConversation(dao);*/
+			
+		 	new ChatServiceDaoController().publishMessage(messageDao.getMessage(),messageDao.getSender(),
+					messageDao.getReceiver(),messageDao.getChannel(),
+					messageDao.getId(),messageDao.getObjectid()+"",
+					messageDao.getNameSender(),messageDao.getNameReceiver());
 
 			}catch(Exception e) {
 				e.printStackTrace();
@@ -89,9 +94,40 @@ public class ChatServiceDaoController {
 		    	   messageDao.setSender(sender);
 		    	   messageDao.setNameReceiver(namereceiver);
 		    	   messageDao.setNameSender(namesender);
+		    	   
+		    	   DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+		           LocalDateTime now = LocalDateTime.now();
+		           messageDao.setDate(dtf.format(now));
+		    	   
+		    	   RedisConfig config = new RedisConfig();
+		    	   UserConversationRepository userConRep= 
+			   				new UserConversationRepository(config.redisTemplateUserConversation());
+		    	   /**Saving Conversation for Publisher**/
+
+			   		UserConversationDao dao = new UserConversationDao();
+			   		dao.setIdConversation(messageDao.getId());
+			   		dao.setUsername(messageDao.getReceiver());
+			   		dao.setId(messageDao.getSender());
+			   		dao.setName(messageDao.getNameReceiver());
+			   		dao.setObjectid(messageDao.getObjectid()+"");
+			   		userConRep.saveUserConversation(dao);
+			   		
+			   		/**Saving Conversation for Subscriber**/
+			   		UserConversationDao dao1 = new UserConversationDao();
+			   		dao1.setIdConversation(messageDao.getId());
+			   		dao1.setUsername(messageDao.getSender());
+			   		dao1.setId(messageDao.getReceiver());
+			   		dao1.setName(messageDao.getNameSender());
+			   		dao1.setObjectid(messageDao.getObjectid()+"");
+					userConRep.saveUserConversation(dao1);
+					
+					/** Saving message in List of messages **/
+					MessageRepository messageRepository=new MessageRepository(config.redisTemplate());
+					messageRepository.saveMessage(messageDao);
+					
 
 		    	   
-		    	   RedisMessageListenerContainer container;
+		    	   /*RedisMessageListenerContainer container;
 		    	   RedisConfig config = new RedisConfig();
 	    		   config.topic=messageDao.getChannel();
 		    	   
@@ -114,7 +150,7 @@ public class ChatServiceDaoController {
 		    	   DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 		           LocalDateTime now = LocalDateTime.now();
 		           messageDao.setDate(dtf.format(now));
-		    	   publisher.publish(messageDao);
+		    	   publisher.publish(messageDao);*/
 		    	   
 		       }catch(Exception e) {
 		    	   e.printStackTrace();
@@ -146,9 +182,9 @@ public class ChatServiceDaoController {
 	}
 	
 	@GetMapping("/GetConversationsDAO/{username}")
-	public List<UserConversationDao> getConversations (@PathVariable String username) {
+	public List getConversations (@PathVariable String username) {
 		
-		List<UserConversationDao> lstConversations;
+		List lstConversations;
 		RedisConfig config = new RedisConfig();
 
 		try {
@@ -157,8 +193,9 @@ public class ChatServiceDaoController {
 			lstConversations = userConversationRepository.getConversations(username);
 			
 		}catch(Exception e) {
-			e.printStackTrace();
-			lstConversations=new ArrayList<UserConversationDao>();
+			//e.printStackTrace();
+			System.err.println(e.getMessage());
+			lstConversations=new ArrayList();
 		}
 		
 		return lstConversations;

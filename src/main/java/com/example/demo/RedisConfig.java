@@ -64,37 +64,7 @@ public class RedisConfig {
 	
 
 
-	@Bean
-	MessageListenerAdapter messageListener() {
-		return new MessageListenerAdapter(new MessageSubscriber());
-	}
 	
-	/*@Bean
-	MessageRepository messageRepository() {
-		return new MessageRepository(redisTemplate());
-	}
-	
-	@Bean
-	UserConversationRepository userConversationRepository() {
-		return new UserConversationRepository(redisTemplateUserConversation());
-	}*/
-
-	@Bean
-	RedisMessageListenerContainer redisContainer() {
-		final RedisMessageListenerContainer container = new RedisMessageListenerContainer();
-		container.setConnectionFactory(jedisConnectionFactory());
-		//container.addMessageListener(messageListener(), topic());
-		container.setTaskExecutor(Executors.newFixedThreadPool(4));
-		container.afterPropertiesSet();
-		container.start();
-
-		return container;
-	}
-
-	@Bean
-	MessagePublisher redisPublisher() {
-		return new MessagePublisher(redisTemplate(), topic());
-	}
 
 	@Bean
 	ChannelTopic topic() {

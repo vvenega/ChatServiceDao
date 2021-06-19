@@ -61,8 +61,9 @@ public class UserConversationRepository {
 			}
 			
 			HashMap<String,UserConversationDao> map = lstConversations.get(0);
-			if(!map.containsKey(userConversation.getUsername())) {
-				map.put(userConversation.getUsername(), userConversation);
+			String usernameObjectid=userConversation.getUsername()+":"+userConversation.getObjectid();
+			if(!map.containsKey(usernameObjectid)) {
+				map.put(usernameObjectid, userConversation);
 				lstConversations.set(0, map);
 				strConversations = mapper.writeValueAsString(lstConversations);
 				hashOperations.put(TABLE, userConversation.getId(), strConversations);
@@ -78,10 +79,13 @@ public class UserConversationRepository {
         System.err.println("UserConversation with ID %s saved:"+userConversation.getId());
 	}
 	
-	public List<UserConversationDao> getConversations(String username){
+	public List getConversations(String username){
 		
-		List<UserConversationDao> lstConversations;
+		//List<UserConversationDao> lstConversations;
 		ObjectMapper mapper = new ObjectMapper();
+		
+		ArrayList response=new ArrayList();
+		HashMap<String,List<UserConversationDao>> hmpConversations = new HashMap<String,List<UserConversationDao>>();
 		
 		try {
 			if(hashOperations.hasKey(TABLE, username)) {
@@ -91,7 +95,7 @@ public class UserConversationRepository {
 				List<HashMap<String,HashMap<String,String>>> tmpConversations = (List<HashMap<String,HashMap<String,String>>>)mapper.readValue(conversations, Collection.class);
 				HashMap<String,HashMap<String,String>> map =(HashMap<String,HashMap<String,String>>)tmpConversations.get(0);
 				Iterator<Entry<String, HashMap<String,String>>> itr =map.entrySet().iterator();
-				lstConversations=new ArrayList<UserConversationDao>();
+				List<UserConversationDao> lstConversations=null;
 				while(itr.hasNext()) {
 					Entry<String, HashMap<String,String>> entry =itr.next();
 					HashMap<String,String> map2=entry.getValue();
@@ -113,17 +117,59 @@ public class UserConversationRepository {
 						else if(field.equals("objectid"))
 							dao.setObjectid(value);
 					}
+					
+					if(hmpConversations.containsKey(dao.getUsername()))
+						lstConversations = hmpConversations.get(dao.getUsername());
+					else 
+						lstConversations=new ArrayList<UserConversationDao>();
+					
 					lstConversations.add(dao);
+					hmpConversations.put(dao.getUsername(), lstConversations);
 				}
 			}else {
-				lstConversations=new ArrayList<UserConversationDao>();
+				//lstConversations=new ArrayList<UserConversationDao>();
+				hmpConversations = new HashMap<String,List<UserConversationDao>>();
 			}
 		}catch(Exception e) {
-			e.printStackTrace();
-			lstConversations=new ArrayList<UserConversationDao>();
+			//e.printStackTrace();
+			//lstConversations=new ArrayList<UserConversationDao>();
+			System.err.println(e.getMessage());
+			hmpConversations = new HashMap<String,List<UserConversationDao>>();
 		}
 		
-		return lstConversations;
+		Iterator<Entry<String,List<UserConversationDao>>>itr2= hmpConversations.entrySet().iterator();
+			
+			while(itr2.hasNext()) {
+				Map.Entry<String,List<UserConversationDao>> entry =itr2.next();
+				
+				List<UserConversationDao> list = entry.getValue();
+
+				
+				Iterator<UserConversationDao> itr3 = list.iterator();
+				
+				int cont=0;
+				
+				while(itr3.hasNext()) {
+					UserConversationDao request = itr3.next();
+					
+					if(cont==0) {
+						cont++;
+						ChatterDao group = new ChatterDao();
+						//group.setName(request.getName()+"_"+request.getObjectid());
+						group.setUsername(request.getUsername());
+						group.setGroup(request.getName());
+						
+						response.add(group);
+						
+					}
+					
+					response.add(request);
+				}
+				
+			}
+		
+		//return lstConversations;
+		return response;
 	}
 	
 	public void deleteUserConversation(String id){
